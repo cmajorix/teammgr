@@ -17,7 +17,6 @@ load_dotenv()
 DEVMODE = "-D" in sys.argv
 DEVGUILD = discord.Object(id=int(os.getenv("TESTGUILD")))
 TOKEN = os.getenv("TOKEN")
-print(TOKEN)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -43,7 +42,7 @@ class ConfirmView(View):
 
     async def update_embed(self, interaction: discord.Interaction):
         self.embed.clear_fields()
-        self.embed.title = f"{self.team_name} Scrim for {self.date}: {self.confirmed}/5"
+        self.embed.title = f"{self.team_name} Scrim for {self.date}: {self.confirmed}/{len(self.members)}"
         for member in self.members:
             self.embed.add_field(name=member, value=self.responses[member], inline=False)
         await interaction.message.edit(embed=self.embed, view=self)
@@ -92,7 +91,7 @@ async def confirm(ctx: discord.Interaction, team_name: str, date: str):
     members = [member.name for member in role.members]
 
     # Create an embed for the poll
-    embed = discord.Embed(title=f"{team_name} Scrim for {date}: 0/5", color=discord.Color.dark_purple())
+    embed = discord.Embed(title=f"{team_name} Scrim for {date}: 0/{len(members)}", color=discord.Color.dark_purple())
     for member in members:
         embed.add_field(name=member, value="No response", inline=False)
 
