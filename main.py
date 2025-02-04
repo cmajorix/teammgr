@@ -7,7 +7,6 @@ import os
 import sys
 
 # THINGS I WANT TO ADD
-# - slash commands
 # - make it work w multiple teams/servers
 # - add team roles
 # - ping managers when enough ppl react yes or no
@@ -18,6 +17,7 @@ load_dotenv()
 DEVMODE = "-D" in sys.argv
 DEVGUILD = discord.Object(id=int(os.getenv("TESTGUILD")))
 TOKEN = os.getenv("TOKEN")
+print(TOKEN)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -32,15 +32,18 @@ async def on_ready():
     print(f'Bot is ready and logged in as {client.user}')
 
 class ConfirmView(View):
-    def __init__(self, date, embed: discord.Embed, members: list[str]):
+    def __init__(self, date, embed: discord.Embed, members: list[str], team_name: str):
         super().__init__(timeout=None)
         self.date = date
         self.embed = embed
         self.members = members
+        self.team_name = team_name
         self.responses = {member: "No response" for member in members}
+        self.confirmed = 0
 
     async def update_embed(self, interaction: discord.Interaction):
         self.embed.clear_fields()
+        self.embed.title = f"{self.team_name} Scrim for {self.date}: {self.confirmed}/5"
         for member in self.members:
             self.embed.add_field(name=member, value=self.responses[member], inline=False)
         await interaction.message.edit(embed=self.embed, view=self)
@@ -49,8 +52,10 @@ class ConfirmView(View):
     async def yes_button(self, interaction: discord.Interaction, button: Button):
         member = interaction.user
         if member.name in self.members:
-            self.responses[member.name] = "Yes"
-            await self.update_embed(interaction)
+            if self.responses[member.name] != "Yes":
+                self.responses[member.name] = "Yes"
+                self.confirmed += 1
+                await self.update_embed(interaction)
             await interaction.response.defer()
         else:
             await interaction.response.send_message("You are not on this team!", ephemeral=True)
@@ -59,6 +64,8 @@ class ConfirmView(View):
     async def no_button(self, interaction: discord.Interaction, button: Button):
         member = interaction.user
         if member.name in self.members:
+            if self.responses[member.name] == "Yes":
+                self.confirmed -= 1
             self.responses[member.name] = "No"
             await self.update_embed(interaction)
             await interaction.response.defer()
@@ -85,11 +92,11 @@ async def confirm(ctx: discord.Interaction, team_name: str, date: str):
     members = [member.name for member in role.members]
 
     # Create an embed for the poll
-    embed = discord.Embed(title=f"{team_name} Scrim for {date}", color=discord.Color.dark_purple())
+    embed = discord.Embed(title=f"{team_name} Scrim for {date}: 0/5", color=discord.Color.dark_purple())
     for member in members:
         embed.add_field(name=member, value="No response", inline=False)
 
-    view = ConfirmView(date, embed, members)
+    view = ConfirmView(date, embed, members, team_name)
 
     await ctx.response.send_message(embed=embed, view=view)
 
